@@ -104,11 +104,11 @@
 <body>
 
 <div class="container">
-    <h1>六合彩智能分析面版</h1>
+    <h1>Lucky no. Dashboard</h1></h1>
 
     <!-- PREDICTION COMPONENT -->
     <div class="prediction-card">
-        <h2>下期預測號碼</h2>
+        <h2>Predicted No.</h2>
         <div class="ball-container" style="justify-content: center; margin-top: 15px;" id="prediction-output">
             <!-- JavaScript will insert balls here -->
         </div>
@@ -116,13 +116,13 @@
 
     <!-- HISTORICAL DATA COMPONENT -->
     <div class="history-card">
-        <h2>近期開獎歷史 (30期數據)</h2>
+        <h2>Recent Data History</h2>
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 25%;">期數</th>
-                        <th>開獎號碼</th>
+                        <th style="width: 25%;">No.</th>
+                        <th>History</th>
                     </tr>
                 </thead>
                 <tbody id="history-table-body">
@@ -174,7 +174,7 @@
         })
         .catch(err => {
             console.error("Error mapping history data logs:", err);
-            document.getElementById('history-table-body').innerHTML = `<tr><td colspan="2" style="text-align:center; color: red;">無法載入開獎歷史數據</td></tr>`;
+            document.getElementById('history-table-body').innerHTML = `<tr><td colspan="2" style="text-align:center; color: red;">Cannot load the history data</td></tr>`;
         });
 </script>
 
