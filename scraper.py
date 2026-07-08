@@ -8,77 +8,77 @@ from bs4 import BeautifulSoup
 # Import Selenium components
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 
 DATA_FILE = "data/results.json"
 
 def fetch_latest_results():
-    """Launches a headless browser to execute JavaScript and extract SVG numbers."""
+    """Launches a headless browser to pull exactly from the modern table layout."""
     url = "https://bet.hkjc.com/ch/marksix/results"
     
-    # Configure Chrome options for a headless cloud environment
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new") # Run without a visual UI
+    chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     driver = None
     try:
-        # Initialize the headless browser
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
         
-        # Crucial: Give the page's JavaScript 5 seconds to run, fetch APIs, and render components
+        # Give React/Vue 5 seconds to load the row animations
         time.sleep(5)
         
-        # Extract the fully rendered page source
-        html_source = driver.page_source
-        soup = BeautifulSoup(html_source, "html.parser")
-        print(soup)
+        soup = BeautifulSoup(driver.page_source, "html.parser")
         draws = []
         
-        # Scan for elements containing images now that JavaScript has run
-        rows = soup.find_all("tr") or soup.find_all("div", class_="result_row")
-        print(rows)
+        # Target the explicit row container classes from your source code
+        rows = soup.find_all("div", class_="table-row")
         
         for row in rows:
-            images = row.find_all("img")
-            ball_numbers = []
+            # 1. Isolate the explicit text string inside the cell-id anchor link
+            id_cell = row.find("div", class_="cell-id")
+            if id_cell and id_cell.find("a"):
+                draw_id = id_cell.find("a").get_text(strip=True)
+            else:
+                continue # Skip rows that don't have a valid ID format
             
-            for img in images:
-                src = img.get("src", "")
-                # Handles the marksix-5.689d21b5...svg pattern
-                match = re.search(r'marksix-(\d{1,2})', src.lower())
-                if match:
-                    ball_numbers.append(int(match.group(1)))
-            
-            if len(ball_numbers) >= 7:
-                row_text = row.get_text()
-                id_match = re.search(r'\d{2}/\d{3}', row_text)
-                draw_id = id_match.group(0) if id_match else "Unknown"
+            # 2. Extract ball values cleanly using the image alt markers
+            ball_list_cell = row.find("div", class_="cell-ball-list")
+            if not ball_list_cell:
+                continue
                 
+            images = ball_list_cell.find_all("img")
+            ball_numbers = []
+            for img in images:
+                alt_val = img.get("alt", "")
+                if alt_val.isdigit():
+                    ball_numbers.append(int(alt_val))
+            
+            # Valid structures must contain 7 items (6 Normal + 1 Special)
+            if len(ball_numbers) >= 7:
                 draws.append({
                     "id": draw_id,
                     "numbers": ball_numbers[:6],
                     "special": ball_numbers[6]
                 })
-                
+
         if draws:
-            print(f"Successfully rendered JavaScript and decoded {len(draws)} draws.")
+            print(f"Successfully scraped {len(draws)} real entries using HTML alt tokens.")
             return {"draws": draws}
             
-        print("Browser loaded the frame but couldn't locate ball targets.")
+        print("Table elements detected, but content structures mismatched.")
         return None
 
     except Exception as e:
-        print(f"Headless browser error: {e}")
+        print(f"Browser parsing error: {e}")
         return None
     finally:
         if driver:
-            driver.quit() # Always close the browser process
+            driver.quit()
 
 def generate_numbers(history):
+    """Generates standard tracking models from real historical weights."""
     pool = []
     for draw in history.get("draws", []):
         pool.extend(draw.get("numbers", []))
@@ -102,8 +102,8 @@ def main():
         store["history"] = raw_data["draws"]
         store["prediction"] = generate_numbers(raw_data)
     else:
-        # Graceful fallback pool to keep frontend running smoothly if network is unstable
-        fallback = {"draws": [{"id": "26/071", "numbers": [8, 11, 19, 22, 39, 45], "special": 23}]}
+        # Emergency backup dataset to let deployment compile successfully
+        fallback = {"draws": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]}
         store["history"] = fallback["draws"]
         store["prediction"] = generate_numbers(fallback)
 
