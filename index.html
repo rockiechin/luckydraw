@@ -1,47 +1,182 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mark Six Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
-        .ball { display: inline-block; width: 40px; height: 40px; line-height: 40px; 
-                border-radius: 50%; background: #f0f0f0; margin: 5px; font-weight: bold; }
-        .special { background: #ff4d4d; color: white; }
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-dark: #333333;
+            --border-color: #e2e8f0;
+            --special-ball: #e53e3e;
+            --normal-ball: #2b6cb0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #1a202c;
+        }
+
+        /* Predictive Section styling */
+        .prediction-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        /* History Layout */
+        .history-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #edf2f7;
+            font-weight: 600;
+        }
+
+        /* Ball Styling */
+        .ball-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            background-color: var(--normal-ball);
+        }
+
+        .ball.special {
+            background-color: var(--special-ball);
+        }
+
+        .plus-sign {
+            font-weight: bold;
+            color: #718096;
+            margin: 0 4px;
+        }
     </style>
 </head>
 <body>
-    <h1>Mark Six Dashboard</h1>
-    
-    <h2>Generated Numbers</h2>
-    <div id="generated-container">Loading...</div>
 
-    <script>
-        // Fetch the statically generated JSON file compiled by GitHub Actions
-        fetch('./data/results.json')
-            .then(res => res.json())
-            .then(data => {
-                const container = document.getElementById('generated-container');
-                container.innerHTML = '';
-                
-                // Render standard numbers
-                data.prediction.numbers.forEach(num => {
-                    const el = document.createElement('span');
-                    el.className = 'ball';
-                    el.innerText = num;
-                    container.appendChild(el);
-                });
-                
-                // Render special number
-                const specialEl = document.createElement('span');
-                specialEl.className = 'ball special';
-                specialEl.innerText = data.prediction.special;
-                container.appendChild(specialEl);
-            })
-            .catch(err => {
-                document.getElementById('generated-container').innerText = 'Failed to load data.';
-                console.error(err);
+<div class="container">
+    <h1>六合彩智能分析面版</h1>
+
+    <!-- PREDICTION COMPONENT -->
+    <div class="prediction-card">
+        <h2>下期預測號碼</h2>
+        <div class="ball-container" style="justify-content: center; margin-top: 15px;" id="prediction-output">
+            <!-- JavaScript will insert balls here -->
+        </div>
+    </div>
+
+    <!-- HISTORICAL DATA COMPONENT -->
+    <div class="history-card">
+        <h2>近期開獎歷史 (30期數據)</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">期數</th>
+                        <th>開獎號碼</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body">
+                    <!-- JavaScript will insert dynamic history loops here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dynamically retrieve your generated JSON data store
+    fetch('data/results.json')
+        .then(response => response.json())
+        .then(data => {
+            // 1. Render the Predictions
+            const predContainer = document.getElementById('prediction-output');
+            let predHtml = '';
+            data.prediction.numbers.forEach(num => {
+                predHtml += `<div class="ball">${num}</div>`;
             });
-    </script>
+            predHtml += `<span class="plus-sign">+</span>`;
+            predHtml += `<div class="ball special">${data.prediction.special}</div>`;
+            predContainer.innerHTML = predHtml;
+
+            // 2. Render the Historical Data Rows
+            const tableBody = document.getElementById('history-table-body');
+            let tableHtml = '';
+
+            data.history.forEach(draw => {
+                // Wrap the six primary balls
+                let normalBallsHtml = draw.numbers.map(num => `<div class="ball">${num}</div>`).join('');
+                
+                tableHtml += `
+                    <tr>
+                        <td><strong>${draw.id}</strong></td>
+                        <td>
+                            <div class="ball-container">
+                                ${normalBallsHtml}
+                                <span class="plus-sign">+</span>
+                                <div class="ball special">${draw.special}</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableBody.innerHTML = tableHtml;
+        })
+        .catch(err => {
+            console.error("Error mapping history data logs:", err);
+            document.getElementById('history-table-body').innerHTML = `<tr><td colspan="2" style="text-align:center; color: red;">無法載入開獎歷史數據</td></tr>`;
+        });
+</script>
+
 </body>
 </html>
