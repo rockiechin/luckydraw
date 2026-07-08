@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mark Six Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
+        .ball { display: inline-block; width: 40px; height: 40px; line-height: 40px; 
+                border-radius: 50%; background: #f0f0f0; margin: 5px; font-weight: bold; }
+        .special { background: #ff4d4d; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Mark Six Dashboard</h1>
+    
+    <h2>Generated Numbers</h2>
+    <div id="generated-container">Loading...</div>
+
+    <script>
+        // Fetch the statically generated JSON file compiled by GitHub Actions
+        fetch('./data/results.json')
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('generated-container');
+                container.innerHTML = '';
+                
+                // Render standard numbers
+                data.prediction.numbers.forEach(num => {
+                    const el = document.createElement('span');
+                    el.className = 'ball';
+                    el.innerText = num;
+                    container.appendChild(el);
+                });
+                
+                // Render special number
+                const specialEl = document.createElement('span');
+                specialEl.className = 'ball special';
+                specialEl.innerText = data.prediction.special;
+                container.appendChild(specialEl);
+            })
+            .catch(err => {
+                document.getElementById('generated-container').innerText = 'Failed to load data.';
+                console.error(err);
+            });
+    </script>
+</body>
+</html>
