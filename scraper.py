@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from datetime import datetime
 
 DATA_FILE = "data/results.json"
 
@@ -134,27 +135,38 @@ def generate_numbers(history):
     return {"numbers": generated_set, "special": special_number}
 
 def main():
+    # 1. Initialize or load the existing data structure
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            try: store = json.load(f)
-            except: store = {"history": [], "prediction": {}}
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            try: 
+                store = json.load(f)
+            except: 
+                store = {"updated_at": "", "history": []}
     else:
-        store = {"history": [], "prediction": {}}
+        store = {"updated_at": "", "history": []}
 
+    # 2. Scrape the fresh data using the multi-page pagination script
     raw_data = fetch_latest_results()
     
     if raw_data:
         store["history"] = raw_data["draws"]
-        store["prediction"] = generate_numbers(raw_data)
+        # Add the current timestamp down to the minute
+        store["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        print(f"Scraper succeeded. Logged timestamp: {store['updated_at']}")
     else:
-        # Emergency backup dataset to let deployment compile successfully
+        # Emergency backup dataset to let deployment compile successfully if HKJC blocks the request
+        print("Scraper failed. Using emergency backup dataset layout.")
         fallback = {"draws": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]}
         store["history"] = fallback["draws"]
-        store["prediction"] = generate_numbers(fallback)
+        store["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M") (Fallback)
 
+    # 3. Save the payload back out to results.json
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    with open(DATA_FILE, "w") as f:
-        json.dump(store, f, indent=2)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(store, f, indent=2, ensure_ascii=False)
+    print("Data package successfully committed to disk storage.")
+    
+
 
 if __name__ == "__main__":
     main()
