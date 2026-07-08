@@ -43,10 +43,12 @@ def fetch_latest_results():
         
         # 4. Parse the expanded HTML layout
         soup = BeautifulSoup(driver.page_source, "html.parser")
+        print(soup)
         draws = []
         
         # Target the explicit row container classes from your source code
         rows = soup.find_all("div", class_="table-row")
+        print(rows)
         
         for row in rows:
             # Isolate the text inside the cell-id anchor link
