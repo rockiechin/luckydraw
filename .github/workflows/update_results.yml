@@ -26,7 +26,7 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        pip install requests beautifulsoup4
+        pip install requests beautifulsoup4 selenium
 
     - name: Run Scraper and Generator
       run: python scraper.py
