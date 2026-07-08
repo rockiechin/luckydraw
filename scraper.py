@@ -20,10 +20,12 @@ def fetch_latest_results():
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, "html.parser")
+        print(soup)
         draws = []
         
         # 1. Look for rows or tables containing the results
         rows = soup.find_all("tr") or soup.find_all("div", class_="result_row")
+        print(rows)
         
         for row in rows:
             # Look for all image elements inside this row (HKJC uses images for numbers)
