@@ -34,7 +34,7 @@ def fetch_latest_results():
                 src = img.get("src", "")
                 # Regex looks for any 1 or 2 digit numbers inside the graphic file name 
                 # (e.g., "no_05.gif", "ball_23.png", "balls/42.gif")
-                match = re.search(r'(\d{1,2})\.(?:gif|png|jpg|jpeg|svg)', src.lower())
+                match = re.search(r'marksix-(\d{1,2})', src.lower())
                 if match:
                     ball_numbers.append(int(match.group(1)))
             
