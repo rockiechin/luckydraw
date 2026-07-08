@@ -27,7 +27,7 @@ def fetch_latest_results():
         
         for row in rows:
             # Look for all image elements inside this row (HKJC uses images for numbers)
-            images = row.find_all("img")
+            images = row.find_all("svg")
             ball_numbers = []
             
             for img in images:
