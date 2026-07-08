@@ -361,16 +361,5 @@
       "special": 8
     }
   ],
-  "prediction": {
-    "numbers": [
-      2,
-      4,
-      8,
-      28,
-      34,
-      38
-    ],
-    "special": 25
-  },
   "updated_at": "2026-07-08 15:05 HKT"
 }
