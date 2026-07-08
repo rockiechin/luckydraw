@@ -5,16 +5,34 @@ import requests
 
 DATA_FILE = "data/results.json"
 
-
 def fetch_latest_results():
-    """Fetches recent draw history from HKJC."""
-    # HKJC's web platform often utilizes a direct JSON or GraphQL structure for results
+    """Fetches recent draw history from HKJC while avoiding bot detection."""
     url = "https://bet.hkjc.com/contentserver/jcbw/cmc/marksix/info/results.json"
+    
+    # Custom headers to mirror a legitimate browser request
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9,zh-HK;q=0.8,zh;q=0.7",
+        "Referer": "https://bet.hkjc.com/marksix/index.aspx?lang=en"
+    }
+    
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        # This checks if the response code is 200 (OK). If it's 403 or 404, it raises an exception immediately.
+        response.raise_for_status() 
+        
         return response.json()
+    except requests.exceptions.HTTPError as http_err:
+        print(f"HTTP error occurred: {http_err}")
+        if response.status_code == 403:
+            print("Access Denied (403). HKJC is blocking the GitHub runner IP or user-agent.")
+        else:
+            print(f"Server content response:\n{response.text[:200]}") # Safely prints the first 200 chars of the error page
+        return None
     except Exception as e:
-        print(f"Error fetching data: {e}")
+        print(f"An unexpected error occurred: {e}")
         return None
 
 
