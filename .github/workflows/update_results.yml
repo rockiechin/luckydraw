@@ -1,4 +1,4 @@
-name: Update Mark Six Data
+name: Update Data
 
 on:
   schedule:
