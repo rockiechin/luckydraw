@@ -12,8 +12,40 @@ from selenium.webdriver.support import expected_conditions as EC
 
 DATA_FILE = "data/results.json"
 
+def parse_rows_from_soup(soup, draws_list):
+    """Helper function to parse and append table rows from the current page source."""
+    rows = soup.find_all("div", class_="table-row")
+    for row in rows:
+        id_cell = row.find("div", class_="cell-id")
+        if id_cell and id_cell.find("a"):
+            draw_id = id_cell.find("a").get_text(strip=True)
+        else:
+            continue 
+
+        # Skip duplicates if a row appears twice during transitions
+        if any(d["id"] == draw_id for d in draws_list):
+            continue
+            
+        ball_list_cell = row.find("div", class_="cell-ball-list")
+        if not ball_list_cell:
+            continue
+            
+        images = ball_list_cell.find_all("img")
+        ball_numbers = []
+        for img in images:
+            alt_val = img.get("alt", "")
+            if alt_val.isdigit():
+                ball_numbers.append(int(alt_val))
+        
+        if len(ball_numbers) >= 7:
+            draws_list.append({
+                "id": draw_id,
+                "numbers": ball_numbers[:6],
+                "special": ball_numbers[6]
+            })
+
 def fetch_latest_results():
-    """Launches a headless browser, updates the dropdown limit, and submits the query."""
+    """Launches headless browser, updates to 30, and navigates across split pagination."""
     url = "https://bet.hkjc.com/ch/marksix/results"
     
     chrome_options = Options()
@@ -27,78 +59,68 @@ def fetch_latest_results():
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
         
-        # Instantiate a robust 10-second element polling manager
         wait = WebDriverWait(driver, 10)
         
-        # 1. Open the dropdown selector menu using the target class match you found
+        # 1. Open dropdown and expand list
         dropdown_button = wait.until(EC.element_to_be_clickable(
             (By.CLASS_NAME, "draw-number-dropdown-button-title-number")
         ))
         dropdown_button.click()
-        time.sleep(1) # Quick breather for menu slide animation
+        time.sleep(1)
         
-        # 2. Select the higher limit inside the opened options layer
-        # If '30' is standard, we find the item containing text "30"
         target_option = wait.until(EC.element_to_be_clickable(
             (By.XPATH, "//*[contains(@class, 'dropdown') or contains(@class, 'option')][text()='30' or contains(text(), '30')]")
         ))
         target_option.click()
-        print("Updated history threshold to 30 via structural dropdown panels.")
         time.sleep(1)
 
-        # 3. Trigger the actual Search event handler
+        # 2. Fire Search query
         search_button = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, "button.search-btn.cta_m6")
         ))
         search_button.click()
         print("Fired search query refresh.")
+        time.sleep(4) # Let page 1 render completely
         
-        # Give the backend container time to fetch and render the long batch
-        time.sleep(4)
-        
-        # 4. Extract data using our verified layout
-        soup = BeautifulSoup(driver.page_source, "html.parser")
         draws = []
-        rows = soup.find_all("div", class_="table-row")
         
-        for row in rows:
-            id_cell = row.find("div", class_="cell-id")
-            if id_cell and id_cell.find("a"):
-                draw_id = id_cell.find("a").get_text(strip=True)
-            else:
-                continue 
+        # --- PAGE 1 SCRAPE ---
+        soup_page1 = BeautifulSoup(driver.page_source, "html.parser")
+        parse_rows_from_soup(soup_page1, draws)
+        print(f"Collected {len(draws)} entries from Page 1.")
+
+        # --- PAGINATION NAVIGATION (PAGE 2) ---
+        try:
+            # Look for common HKJC pagination selectors (e.g., an arrow icon or a link with text "2")
+            # This handles either a literal '2' button or a 'next page' layout element
+            next_page_btn = driver.find_elements(By.XPATH, "//*[contains(@class, 'page') or contains(@class, 'pagination')]//*[text()='2' or contains(@class, 'next')]")
             
-            ball_list_cell = row.find("div", class_="cell-ball-list")
-            if not ball_list_cell:
-                continue
+            if next_page_btn and next_page_btn[0].is_displayed():
+                next_page_btn[0].click()
+                print("Clicked page navigation to move to Page 2.")
+                time.sleep(3) # Give table content time to swap
                 
-            images = ball_list_cell.find_all("img")
-            ball_numbers = []
-            for img in images:
-                alt_val = img.get("alt", "")
-                if alt_val.isdigit():
-                    ball_numbers.append(int(alt_val))
-            
-            if len(ball_numbers) >= 7:
-                draws.append({
-                    "id": draw_id,
-                    "numbers": ball_numbers[:6],
-                    "special": ball_numbers[6]
-                })
+                # --- PAGE 2 SCRAPE ---
+                soup_page2 = BeautifulSoup(driver.page_source, "html.parser")
+                parse_rows_from_soup(soup_page2, draws)
+                print(f"Total entries aggregated across all pages: {len(draws)}")
+            else:
+                print("No active secondary page navigation found, tracking single-pane setup.")
+        except Exception as nav_err:
+            print(f"Pagination navigation skipped or not required: {nav_err}")
 
         if draws:
-            print(f"Successfully scraped {len(draws)} real entries using expanded HTML layout.")
             return {"draws": draws}
-            
-        print("Table elements detected, but content structures mismatched.")
         return None
 
     except Exception as e:
-        print(f"Browser parsing error during element selection sequence: {e}")
+        print(f"Browser processing error: {e}")
         return None
     finally:
         if driver:
             driver.quit()
+
+# Keep your existing generate_numbers() and main() functions exactly the same below this!
 
 def generate_numbers(history):
     """Generates standard tracking models from real historical weights."""
