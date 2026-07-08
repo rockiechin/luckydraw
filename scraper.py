@@ -9,7 +9,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
 
 DATA_FILE = "data/results.json"
 
@@ -135,32 +136,51 @@ def generate_numbers(history):
     return {"numbers": generated_set, "special": special_number}
 
 def main():
-    # 1. Initialize or load the existing data structure
+    # 1. Initialize data layout and load existing file if it exists
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             try: 
                 store = json.load(f)
+                # Ensure structure integrity if older keys are missing
+                if "history" not in store:
+                    store["history"] = []
+                if "updated_at" not in store:
+                    store["updated_at"] = ""
             except: 
-                store = {"updated_at": "", "history": []}
+                # If the JSON file is completely corrupted, use a hard fallback with HKT
+                hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
+                store = {
+                    "updated_at": hkt_now.strftime("%Y-%m-%d %H:%M HKT"), 
+                    "history": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]
+                }
     else:
-        store = {"updated_at": "", "history": []}
+        # First time running the script (no file exists yet)
+        hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
+        store = {
+            "updated_at": hkt_now.strftime("%Y-%m-%d %H:%M HKT"), 
+            "history": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]
+        }
 
-    # 2. Scrape the fresh data using the multi-page pagination script
+    # 2. Try to scrape the fresh data
     raw_data = fetch_latest_results()
     
-    if raw_data:
-        store["history"] = raw_data["draws"]
-        # Add the current timestamp down to the minute
-        store["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        print(f"Scraper succeeded. Logged timestamp: {store['updated_at']}")
-    else:
-        # Emergency backup dataset to let deployment compile successfully if HKJC blocks the request
-        print("Scraper failed. Using emergency backup dataset layout.")
-        fallback = {"draws": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]}
-        store["history"] = fallback["draws"]
-        store["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M") (Fallback)
+    # Calculate current Hong Kong Time (UTC + 8 hours)
+    hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
+    hkt_str = hkt_now.strftime("%Y-%m-%d %H:%M HKT")
 
-    # 3. Save the payload back out to results.json
+    if raw_data and raw_data.get("draws"):
+        # Success! Overwrite with new data and log the new HKT timestamp
+        store["history"] = raw_data["draws"]
+        store["updated_at"] = hkt_str
+        print(f"Scraper succeeded. Logged HKT timestamp: {store['updated_at']}")
+    else:
+        # FAIL SAFE: Keep everything exactly as it was loaded from the file
+        print("⚠️ Scraper failed to fetch new data! Retaining previous history.")
+        # Append a small indicator to the timestamp if it isn't already marked stale
+        if store["updated_at"] and "(Stale)" not in store["updated_at"]:
+            store["updated_at"] = f"{store['updated_at']} (Stale)"
+
+    # 3. Save everything back out to results.json
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(store, f, indent=2, ensure_ascii=False)
