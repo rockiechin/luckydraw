@@ -12,6 +12,8 @@
             --border-color: #e2e8f0;
             --special-ball: #e53e3e;
             --normal-ball: #2b6cb0;
+            --btn-color: #3182ce;
+            --btn-hover: #2b6cb0;
         }
 
         body {
@@ -40,6 +42,31 @@
             margin-bottom: 30px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             text-align: center;
+        }
+
+        /* Action Trigger Button Styling */
+        .generate-btn {
+            background-color: var(--btn-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .generate-btn:hover {
+            background-color: var(--btn-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        .generate-btn:active {
+            transform: translateY(1px);
         }
 
         /* History Layout */
@@ -104,7 +131,7 @@
 <body>
 
 <div class="container">
-    <h1>Lucky no. Dashboard</h1></h1>
+    <h1>Lucky no. Dashboard</h1>
 
     <!-- PREDICTION COMPONENT -->
     <div class="prediction-card">
@@ -112,6 +139,8 @@
         <div class="ball-container" style="justify-content: center; margin-top: 15px;" id="prediction-output">
             <!-- JavaScript will insert balls here -->
         </div>
+        <!-- Re-generation Action Button -->
+        <button class="generate-btn" id="generate-trigger-btn">🎲 Generate Random Numbers</button>
     </div>
 
     <!-- HISTORICAL DATA COMPONENT -->
@@ -134,26 +163,67 @@
 </div>
 
 <script>
-    // Dynamically retrieve your generated JSON data store
+    // Keep local dynamic data cache frame accessible to the generator context
+    let cachedHistoryData = [];
+
+    // Core client-side generation engine
+    function executePredictionGeneration() {
+        if (cachedHistoryData.length === 0) return;
+
+        let pool = [];
+        cachedHistoryData.forEach(draw => {
+            pool.push(...draw.numbers);
+        });
+
+        if (pool.length < 6) {
+            pool = Array.from({length: 49}, (_, i) => i + 1);
+        }
+
+        let uniquePool = [...new Set(pool)];
+        let predictedNumbers = [];
+
+        while (predictedNumbers.length < 6) {
+            const randomIndex = Math.floor(Math.random() * uniquePool.length);
+            const chosenNumber = uniquePool[randomIndex];
+            if (!predictedNumbers.includes(chosenNumber)) {
+                predictedNumbers.push(chosenNumber);
+            }
+        }
+        predictedNumbers.sort((a, b) => a - b);
+
+        let allowedSpecial = Array.from({length: 49}, (_, i) => i + 1)
+                                  .filter(num => !predictedNumbers.includes(num));
+        const randomSpecialIndex = Math.floor(Math.random() * allowedSpecial.length);
+        const predictedSpecial = allowedSpecial[randomSpecialIndex];
+
+        // Direct layout injection
+        const predContainer = document.getElementById('prediction-output');
+        let predHtml = '';
+        predictedNumbers.forEach(num => {
+            predHtml += `<div class="ball">${num}</div>`;
+        });
+        predHtml += `<span class="plus-sign">+</span>`;
+        predHtml += `<div class="ball special">${predictedSpecial}</div>`;
+        predContainer.innerHTML = predHtml;
+    }
+
+    // Dynamic retrieval from JSON data store
     fetch('data/results.json')
         .then(response => response.json())
         .then(data => {
-            // 1. Render the Predictions
-            const predContainer = document.getElementById('prediction-output');
-            let predHtml = '';
-            data.prediction.numbers.forEach(num => {
-                predHtml += `<div class="ball">${num}</div>`;
-            });
-            predHtml += `<span class="plus-sign">+</span>`;
-            predHtml += `<div class="ball special">${data.prediction.special}</div>`;
-            predContainer.innerHTML = predHtml;
+            cachedHistoryData = data.history;
 
-            // 2. Render the Historical Data Rows
+            // 1. Initial prediction build on page land
+            executePredictionGeneration();
+
+            // 2. Bind click listener context to the action node
+            document.getElementById('generate-trigger-btn').addEventListener('click', executePredictionGeneration);
+
+            // 3. Render out the custom table body layout matrix
             const tableBody = document.getElementById('history-table-body');
             let tableHtml = '';
 
-            data.history.forEach(draw => {
-                // Wrap the six primary balls
+            cachedHistoryData.forEach(draw => {
                 let normalBallsHtml = draw.numbers.map(num => `<div class="ball">${num}</div>`).join('');
                 
                 tableHtml += `
@@ -173,7 +243,7 @@
             tableBody.innerHTML = tableHtml;
         })
         .catch(err => {
-            console.error("Error mapping history data logs:", err);
+            console.error("Error processing framework data mapping:", err);
             document.getElementById('history-table-body').innerHTML = `<tr><td colspan="2" style="text-align:center; color: red;">Cannot load the history data</td></tr>`;
         });
 </script>
