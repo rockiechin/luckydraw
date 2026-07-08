@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.options import Options
 DATA_FILE = "data/results.json"
 
 def fetch_latest_results():
-    """Launches a headless browser to pull exactly from the modern table layout."""
+    """Launches a headless browser, clicks the search button to load the maximum draw list, and extracts data."""
     url = "https://bet.hkjc.com/ch/marksix/results"
     
     chrome_options = Options()
@@ -26,9 +26,22 @@ def fetch_latest_results():
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
         
-        # Give React/Vue 5 seconds to load the row animations
-        time.sleep(5)
+        # 1. Wait for the initial framework to load
+        time.sleep(4)
         
+        # 2. Find and click the "搜尋" (Search) button to expand the list from 10 rows
+        try:
+            # Targets the explicit class layout from your HTML source code: class="search-btn cta_m6"
+            search_button = driver.find_element("css selector", "button.search-btn.cta_m6")
+            search_button.click()
+            print("Successfully clicked the Search button to expand history list.")
+            
+            # 3. Give the page 3 seconds to dynamically render the longer table layout
+            time.sleep(3)
+        except Exception as click_error:
+            print(f"Could not trigger search expansion button, proceeding with visible default list: {click_error}")
+        
+        # 4. Parse the expanded HTML layout
         soup = BeautifulSoup(driver.page_source, "html.parser")
         draws = []
         
@@ -36,14 +49,14 @@ def fetch_latest_results():
         rows = soup.find_all("div", class_="table-row")
         
         for row in rows:
-            # 1. Isolate the explicit text string inside the cell-id anchor link
+            # Isolate the text inside the cell-id anchor link
             id_cell = row.find("div", class_="cell-id")
             if id_cell and id_cell.find("a"):
                 draw_id = id_cell.find("a").get_text(strip=True)
             else:
-                continue # Skip rows that don't have a valid ID format
+                continue 
             
-            # 2. Extract ball values cleanly using the image alt markers
+            # Extract ball values cleanly using the image alt markers
             ball_list_cell = row.find("div", class_="cell-ball-list")
             if not ball_list_cell:
                 continue
@@ -55,7 +68,6 @@ def fetch_latest_results():
                 if alt_val.isdigit():
                     ball_numbers.append(int(alt_val))
             
-            # Valid structures must contain 7 items (6 Normal + 1 Special)
             if len(ball_numbers) >= 7:
                 draws.append({
                     "id": draw_id,
@@ -64,7 +76,7 @@ def fetch_latest_results():
                 })
 
         if draws:
-            print(f"Successfully scraped {len(draws)} real entries using HTML alt tokens.")
+            print(f"Successfully scraped {len(draws)} real entries using expanded HTML layout.")
             return {"draws": draws}
             
         print("Table elements detected, but content structures mismatched.")
