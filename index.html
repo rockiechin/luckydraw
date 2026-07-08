@@ -9,6 +9,7 @@
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
             --text-dark: #333333;
+            --text-muted: #718096;
             --border-color: #e2e8f0;
             --special-ball: #e53e3e;
             --normal-ball: #2b6cb0;
@@ -32,6 +33,16 @@
         h1, h2 {
             text-align: center;
             color: #1a202c;
+            margin-bottom: 4px;
+        }
+
+        /* Subtle Status Timestamp Badge */
+        .update-status {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 0;
+            margin-bottom: 24px;
         }
 
         /* Predictive Section styling */
@@ -132,6 +143,8 @@
 
 <div class="container">
     <h1>Lucky no. Dashboard</h1>
+    <!-- Time log placeholder container targeted via script identity -->
+    <div class="update-status" id="timestamp-tracker">Loading system status...</div>
 
     <!-- PREDICTION COMPONENT -->
     <div class="prediction-card">
@@ -139,19 +152,18 @@
         <div class="ball-container" style="justify-content: center; margin-top: 15px;" id="prediction-output">
             <!-- JavaScript will insert balls here -->
         </div>
-        <!-- Re-generation Action Button -->
         <button class="generate-btn" id="generate-trigger-btn">🎲 Generate Random Numbers</button>
     </div>
 
     <!-- HISTORICAL DATA COMPONENT -->
     <div class="history-card">
-        <h2>Recent Historical Data </h2>
+        <h2>Recent History</h2>
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
                         <th style="width: 25%;">No.</th>
-                        <th>History</th>
+                        <th>Result</th>
                     </tr>
                 </thead>
                 <tbody id="history-table-body">
@@ -163,10 +175,8 @@
 </div>
 
 <script>
-    // Keep local dynamic data cache frame accessible to the generator context
     let cachedHistoryData = [];
 
-    // Core client-side generation engine
     function executePredictionGeneration() {
         if (cachedHistoryData.length === 0) return;
 
@@ -196,7 +206,6 @@
         const randomSpecialIndex = Math.floor(Math.random() * allowedSpecial.length);
         const predictedSpecial = allowedSpecial[randomSpecialIndex];
 
-        // Direct layout injection
         const predContainer = document.getElementById('prediction-output');
         let predHtml = '';
         predictedNumbers.forEach(num => {
@@ -207,19 +216,26 @@
         predContainer.innerHTML = predHtml;
     }
 
-    // Dynamic retrieval from JSON data store
     fetch('data/results.json')
         .then(response => response.json())
         .then(data => {
+            // 1. Process and append the timestamp string safely
+            const timestampContainer = document.getElementById('timestamp-tracker');
+            if (data.updated_at) {
+                timestampContainer.textContent = `Last Data Update: ${data.updated_at}`;
+            } else {
+                timestampContainer.textContent = `Last Data Update: Manual Sync`;
+            }
+
             cachedHistoryData = data.history;
 
-            // 1. Initial prediction build on page land
+            // 2. Initial prediction build on page land
             executePredictionGeneration();
 
-            // 2. Bind click listener context to the action node
+            // 3. Bind click listener context to the action node
             document.getElementById('generate-trigger-btn').addEventListener('click', executePredictionGeneration);
 
-            // 3. Render out the custom table body layout matrix
+            // 4. Render out the custom table body layout matrix
             const tableBody = document.getElementById('history-table-body');
             let tableHtml = '';
 
@@ -244,6 +260,7 @@
         })
         .catch(err => {
             console.error("Error processing framework data mapping:", err);
+            document.getElementById('timestamp-tracker').textContent = "Status Check Failed";
             document.getElementById('history-table-body').innerHTML = `<tr><td colspan="2" style="text-align:center; color: red;">Cannot load the history data</td></tr>`;
         });
 </script>
