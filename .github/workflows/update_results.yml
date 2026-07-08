@@ -1,5 +1,0 @@
-- name: Commit and Push Changes
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "Automated update: Latest results & generated numbers"
-        file_pattern: 'data/results.json'
