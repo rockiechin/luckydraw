@@ -1,18 +1,19 @@
 import os
 import json
 import random
-import re
 import time
 from bs4 import BeautifulSoup
 
-# Import Selenium components
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 DATA_FILE = "data/results.json"
 
 def fetch_latest_results():
-    """Launches a headless browser, clicks the search button to load the maximum draw list, and extracts data."""
+    """Launches a headless browser, updates the dropdown limit, and submits the query."""
     url = "https://bet.hkjc.com/ch/marksix/results"
     
     chrome_options = Options()
@@ -26,39 +27,47 @@ def fetch_latest_results():
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
         
-        # 1. Wait for the initial framework to load
+        # Instantiate a robust 10-second element polling manager
+        wait = WebDriverWait(driver, 10)
+        
+        # 1. Open the dropdown selector menu using the target class match you found
+        dropdown_button = wait.until(EC.element_to_be_clickable(
+            (By.CLASS_NAME, "draw-number-dropdown-button-title-number")
+        ))
+        dropdown_button.click()
+        time.sleep(1) # Quick breather for menu slide animation
+        
+        # 2. Select the higher limit inside the opened options layer
+        # If '30' is standard, we find the item containing text "30"
+        target_option = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//*[contains(@class, 'dropdown') or contains(@class, 'option')][text()='30' or contains(text(), '30')]")
+        ))
+        target_option.click()
+        print("Updated history threshold to 30 via structural dropdown panels.")
+        time.sleep(1)
+
+        # 3. Trigger the actual Search event handler
+        search_button = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, "button.search-btn.cta_m6")
+        ))
+        search_button.click()
+        print("Fired search query refresh.")
+        
+        # Give the backend container time to fetch and render the long batch
         time.sleep(4)
         
-        # 2. Find and click the "搜尋" (Search) button to expand the list from 10 rows
-        try:
-            # Targets the explicit class layout from your HTML source code: class="search-btn cta_m6"
-            search_button = driver.find_element("css selector", "button.search-btn.cta_m6")
-            search_button.click()
-            print("Successfully clicked the Search button to expand history list.")
-            
-            # 3. Give the page 3 seconds to dynamically render the longer table layout
-            time.sleep(3)
-        except Exception as click_error:
-            print(f"Could not trigger search expansion button, proceeding with visible default list: {click_error}")
-        
-        # 4. Parse the expanded HTML layout
+        # 4. Extract data using our verified layout
         soup = BeautifulSoup(driver.page_source, "html.parser")
-        print(soup)
         draws = []
-        
-        # Target the explicit row container classes from your source code
         rows = soup.find_all("div", class_="table-row")
-        print(rows)
         
         for row in rows:
-            # Isolate the text inside the cell-id anchor link
             id_cell = row.find("div", class_="cell-id")
             if id_cell and id_cell.find("a"):
                 draw_id = id_cell.find("a").get_text(strip=True)
             else:
                 continue 
             
-            # Extract ball values cleanly using the image alt markers
             ball_list_cell = row.find("div", class_="cell-ball-list")
             if not ball_list_cell:
                 continue
@@ -85,7 +94,7 @@ def fetch_latest_results():
         return None
 
     except Exception as e:
-        print(f"Browser parsing error: {e}")
+        print(f"Browser parsing error during element selection sequence: {e}")
         return None
     finally:
         if driver:
