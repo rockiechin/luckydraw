@@ -474,6 +474,8 @@
 
         let uniquePool = [...new Set(pool)];
         let predictedNumbers = [];
+        print(pool);
+        print(uniquePool);
 
         while (predictedNumbers.length < 6) {
             const randomIndex = Math.floor(Math.random() * uniquePool.length);
