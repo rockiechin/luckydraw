@@ -462,34 +462,40 @@
     // Core client-side generation engine
     function executePredictionGeneration() {
         if (cachedHistoryData.length === 0) return;
-
+    
+        // 1. Gather all numbers directly into the raw pool
         let pool = [];
         cachedHistoryData.forEach(draw => {
             pool.push(...draw.numbers);
         });
-
+    
+        // Fallback if the history file is empty
         if (pool.length < 6) {
             pool = Array.from({length: 49}, (_, i) => i + 1);
         }
-
-        let uniquePool = [...new Set(pool)];
+    
         let predictedNumbers = [];
-        
+    
+        // 2. Draw directly from the raw 'pool' to preserve occurrences/weights
         while (predictedNumbers.length < 6) {
             const randomIndex = Math.floor(Math.random() * pool.length);
             const chosenNumber = pool[randomIndex];
+            
+            // We still check for duplicates within our 6-number ticket 
+            // so we don't accidentally pick the same number twice in one draw
             if (!predictedNumbers.includes(chosenNumber)) {
                 predictedNumbers.push(chosenNumber);
             }
         }
         predictedNumbers.sort((a, b) => a - b);
-
+    
+        // 3. Draw the special ball (ensuring no collision with main numbers)
         let allowedSpecial = Array.from({length: 49}, (_, i) => i + 1)
                                   .filter(num => !predictedNumbers.includes(num));
         const randomSpecialIndex = Math.floor(Math.random() * allowedSpecial.length);
         const predictedSpecial = allowedSpecial[randomSpecialIndex];
-
-        // 1. Render Current Primary Display
+    
+        // 4. Render Current Primary Display
         const predContainer = document.getElementById('prediction-output');
         let predHtml = '';
         predictedNumbers.forEach(num => {
@@ -498,16 +504,17 @@
         predHtml += `<span class="plus-sign">+</span>`;
         predHtml += `<div class="ball special">${predictedSpecial}</div>`;
         predContainer.innerHTML = predHtml;
-
-        // 2. Save this newly generated prediction to history storage
+    
+        // 5. Save this newly generated prediction to history storage
         savePredictionToLocal(predictedNumbers, predictedSpecial);
-
+    
         console.log("1. Raw Pool:", pool);
-        console.log("2. Unique Pool:", uniquePool);
-        console.log("3. Drawn Numbers:", predictedNumbers);
-        console.log("4. Allowed Specials:", allowedSpecial);
+        console.log("2. Drawn Numbers:", predictedNumbers);
+        console.log("3. Allowed Specials:", allowedSpecial);
+        
     }
 
+    
     // Dynamic retrieval from JSON data store
     fetch('data/results.json')
         .then(response => response.json())
