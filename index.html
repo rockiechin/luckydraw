@@ -186,8 +186,8 @@
     let cachedHistoryData = [];
     let frequencyChartInstance = null;
 
-    // Helper to extract pool occurrences and update/render the Chart.js graphic
-    renderFrequencyChart(history) {
+    // Fixed function syntax error here (added the 'function' keyword)
+    function renderFrequencyChart(history) {
         // Initialize an array of 49 zeros (representing numbers 1 to 49)
         const counts = Array(49).fill(0);
 
@@ -204,7 +204,7 @@
         const labels = Array.from({length: 49}, (_, i) => i + 1);
         const ctx = document.getElementById('frequencyChart').getContext('2d');
 
-        // Destroy previous instance if it exists (crucial when dynamically refreshing data)
+        // Destroy previous instance if it exists to avoid visual rendering glitches on redraw
         if (frequencyChartInstance) {
             frequencyChartInstance.destroy();
         }
@@ -217,7 +217,7 @@
                 datasets: [{
                     label: 'Occurrences',
                     data: counts,
-                    backgroundColor: 'rgba(43, 108, 176, 0.7)', // match normal-ball color with opacity
+                    backgroundColor: 'rgba(43, 108, 176, 0.7)', 
                     borderColor: 'rgba(43, 108, 176, 1)',
                     borderWidth: 1,
                     borderRadius: 3
