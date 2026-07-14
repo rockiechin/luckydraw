@@ -476,8 +476,8 @@
         let predictedNumbers = [];
         
         while (predictedNumbers.length < 6) {
-            const randomIndex = Math.floor(Math.random() * uniquePool.length);
-            const chosenNumber = uniquePool[randomIndex];
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            const chosenNumber = pool[randomIndex];
             if (!predictedNumbers.includes(chosenNumber)) {
                 predictedNumbers.push(chosenNumber);
             }
