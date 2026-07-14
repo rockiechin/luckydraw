@@ -251,6 +251,28 @@
             </div>
         <button class="generate-btn" id="generate-trigger-btn">🎲 Generate Random Numbers</button>
 
+        <div style="margin-top: 20px; text-align: left;">
+            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">
+                📋 Current Weighted Selection Pool (Total items: <span id="pool-size-counter">0</span>)
+            </label>
+            <div id="pool-values-box" style="
+                margin-top: 5px;
+                padding: 12px;
+                background-color: #f7fafc;
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                font-family: monospace;
+                font-size: 12px;
+                color: #4a5568;
+                max-height: 80px;
+                overflow-y: auto;
+                word-wrap: break-word;
+                line-height: 1.5;
+            ">
+                Loading pool tracking matrix...
+            </div>
+        </div>
+
         <div class="saved-section">
             <div class="saved-title-bar">
                 <span class="saved-title" id="saved-history-title">⭐ My Generated History</span>
@@ -299,8 +321,8 @@
     let frequencyChartInstance = null;
     
     // --- Configuration Variables ---
-    const MAX_SAVED_LIMIT = 10; // Change this number to easily adjust history length!
-        
+    const MAX_SAVED_LIMIT = 10; // Easily adjust tracking capacity pool length
+    
     // Pagination tracking states
     let currentPage = 1;
     const recordsPerPage = 10;
@@ -395,7 +417,7 @@
         document.getElementById('next-btn').disabled = currentPage === totalPages || totalPages === 0;
     }
 
-// Save a prediction array to localStorage
+    // Save a prediction array to localStorage
     function savePredictionToLocal(numbers, special) {
         let savedList = [];
         try {
@@ -418,7 +440,7 @@
             special: special
         });
 
-        // Use the config variable here
+        // Use the config variable to limit total saves dynamically
         if (savedList.length > MAX_SAVED_LIMIT) {
             savedList = savedList.slice(0, MAX_SAVED_LIMIT);
         }
@@ -426,7 +448,7 @@
         localStorage.setItem('m6_saved_predictions', JSON.stringify(savedList));
         renderSavedPredictions();
     }
-    
+
     // Render list from localStorage
     function renderSavedPredictions() {
         const container = document.getElementById('saved-list-container');
@@ -459,42 +481,45 @@
         container.innerHTML = html;
     }
 
-    // Core client-side generation engine
+    // Core client-side generation engine using a raw weighted probability pool
     function executePredictionGeneration() {
         if (cachedHistoryData.length === 0) return;
-    
-        // 1. Gather all numbers directly into the raw pool
+
+        // 1. Gather all numbers directly into the raw pool to preserve occurrence weight
         let pool = [];
         cachedHistoryData.forEach(draw => {
             pool.push(...draw.numbers);
         });
-    
+
         // Fallback if the history file is empty
         if (pool.length < 6) {
             pool = Array.from({length: 49}, (_, i) => i + 1);
         }
-    
+
+        // Output structural matrix data directly into the scroll text layout box element
+        const sortedDisplayPool = [...pool].sort((a, b) => a - b);
+        document.getElementById('pool-size-counter').textContent = pool.length;
+        document.getElementById('pool-values-box').textContent = JSON.stringify(sortedDisplayPool).replace(/[\[\]]/g, ' ');
+
         let predictedNumbers = [];
-    
+
         // 2. Draw directly from the raw 'pool' to preserve occurrences/weights
         while (predictedNumbers.length < 6) {
             const randomIndex = Math.floor(Math.random() * pool.length);
             const chosenNumber = pool[randomIndex];
             
-            // We still check for duplicates within our 6-number ticket 
-            // so we don't accidentally pick the same number twice in one draw
             if (!predictedNumbers.includes(chosenNumber)) {
                 predictedNumbers.push(chosenNumber);
             }
         }
         predictedNumbers.sort((a, b) => a - b);
-    
+
         // 3. Draw the special ball (ensuring no collision with main numbers)
         let allowedSpecial = Array.from({length: 49}, (_, i) => i + 1)
                                   .filter(num => !predictedNumbers.includes(num));
         const randomSpecialIndex = Math.floor(Math.random() * allowedSpecial.length);
         const predictedSpecial = allowedSpecial[randomSpecialIndex];
-    
+
         // 4. Render Current Primary Display
         const predContainer = document.getElementById('prediction-output');
         let predHtml = '';
@@ -504,17 +529,11 @@
         predHtml += `<span class="plus-sign">+</span>`;
         predHtml += `<div class="ball special">${predictedSpecial}</div>`;
         predContainer.innerHTML = predHtml;
-    
+
         // 5. Save this newly generated prediction to history storage
         savePredictionToLocal(predictedNumbers, predictedSpecial);
-    
-        console.log("1. Raw Pool:", pool);
-        console.log("2. Drawn Numbers:", predictedNumbers);
-        console.log("3. Allowed Specials:", allowedSpecial);
-        
     }
 
-    
     // Dynamic retrieval from JSON data store
     fetch('data/results.json')
         .then(response => response.json())
@@ -531,7 +550,7 @@
             // Render existing localStorage items immediately on load
             renderSavedPredictions();
             
-            // Set the title dynamically using your variable
+            // Sync dynamic labels utilizing global configurations parameters
             document.getElementById('saved-history-title').textContent = `⭐ My Generated History (Last ${MAX_SAVED_LIMIT})`;
 
             // 1. Initial prediction build on page land
