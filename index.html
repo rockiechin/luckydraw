@@ -474,9 +474,7 @@
 
         let uniquePool = [...new Set(pool)];
         let predictedNumbers = [];
-        print(pool);
-        print(uniquePool);
-
+        
         while (predictedNumbers.length < 6) {
             const randomIndex = Math.floor(Math.random() * uniquePool.length);
             const chosenNumber = uniquePool[randomIndex];
@@ -503,6 +501,11 @@
 
         // 2. Save this newly generated prediction to history storage
         savePredictionToLocal(predictedNumbers, predictedSpecial);
+
+        console.log("1. Raw Pool:", pool);
+        console.log("2. Unique Pool:", uniquePool);
+        console.log("3. Drawn Numbers:", predictedNumbers);
+        console.log("4. Allowed Specials:", allowedSpecial);
     }
 
     // Dynamic retrieval from JSON data store
