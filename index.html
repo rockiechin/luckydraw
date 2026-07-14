@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mark Six Dashboard</title>
+    <title>LuckyDraw Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -140,6 +140,43 @@
             width: 100%;
             margin-top: 20px;
         }
+
+        /* Pagination Controls Styling */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            background-color: var(--btn-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background-color: var(--btn-hover);
+        }
+
+        .page-btn:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
     </style>
 </head>
 <body>
@@ -179,19 +216,27 @@
                     </tbody>
             </table>
         </div>
+        
+        <div class="pagination-controls">
+            <button class="page-btn" id="prev-btn" disabled>Previous</button>
+            <span class="page-info" id="page-indicator">Page 1 of 1</span>
+            <button class="page-btn" id="next-btn" disabled>Next</button>
+        </div>
     </div>
 </div>
 
 <script>
     let cachedHistoryData = [];
     let frequencyChartInstance = null;
+    
+    // Pagination tracking states
+    let currentPage = 1;
+    const recordsPerPage = 10;
 
-    // Fixed function syntax error here (added the 'function' keyword)
+    // Render historical frequencies from the complete accumulated database pool
     function renderFrequencyChart(history) {
-        // Initialize an array of 49 zeros (representing numbers 1 to 49)
         const counts = Array(49).fill(0);
 
-        // Count occurrences of every normal ball and special ball in the dataset
         history.forEach(draw => {
             draw.numbers.forEach(num => {
                 if (num >= 1 && num <= 49) counts[num - 1]++;
@@ -204,12 +249,10 @@
         const labels = Array.from({length: 49}, (_, i) => i + 1);
         const ctx = document.getElementById('frequencyChart').getContext('2d');
 
-        // Destroy previous instance if it exists to avoid visual rendering glitches on redraw
         if (frequencyChartInstance) {
             frequencyChartInstance.destroy();
         }
 
-        // Initialize dynamic bar chart instance
         frequencyChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -241,6 +284,45 @@
                 }
             }
         });
+    }
+
+    // Handles slicing and rendering for the active page index
+    function renderTablePage(page) {
+        const tableBody = document.getElementById('history-table-body');
+        const totalPages = Math.ceil(cachedHistoryData.length / recordsPerPage);
+
+        // Bound page index to structural limits
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        currentPage = page;
+
+        const startIndex = (page - 1) * recordsPerPage;
+        const endIndex = startIndex + recordsPerPage;
+        const pageData = cachedHistoryData.slice(startIndex, endIndex);
+
+        let tableHtml = '';
+        pageData.forEach(draw => {
+            let normalBallsHtml = draw.numbers.map(num => `<div class="ball">${num}</div>`).join('');
+            
+            tableHtml += `
+                <tr>
+                    <td><strong>${draw.id}</strong></td>
+                    <td>
+                        <div class="ball-container">
+                            ${normalBallsHtml}
+                            <span class="plus-sign">+</span>
+                            <div class="ball special">${draw.special}</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        tableBody.innerHTML = tableHtml;
+
+        // Sync visual UI controls elements
+        document.getElementById('page-indicator').textContent = `Page ${currentPage} of ${totalPages || 1}`;
+        document.getElementById('prev-btn').disabled = currentPage === 1;
+        document.getElementById('next-btn').disabled = currentPage === totalPages || totalPages === 0;
     }
 
     function executePredictionGeneration() {
@@ -298,34 +380,23 @@
             // 1. Initial prediction build on page land
             executePredictionGeneration();
 
-            // 2. Render the interactive frequency chart
+            // 2. Render the interactive frequency chart with the FULL history pool
             renderFrequencyChart(cachedHistoryData);
 
-            // 3. Bind click listener context to the action node
+            // 3. Bind click listener context to the prediction generator
             document.getElementById('generate-trigger-btn').addEventListener('click', executePredictionGeneration);
 
-            // 4. Render out the custom table body layout matrix
-            const tableBody = document.getElementById('history-table-body');
-            let tableHtml = '';
-
-            cachedHistoryData.forEach(draw => {
-                let normalBallsHtml = draw.numbers.map(num => `<div class="ball">${num}</div>`).join('');
-                
-                tableHtml += `
-                    <tr>
-                        <td><strong>${draw.id}</strong></td>
-                        <td>
-                            <div class="ball-container">
-                                ${normalBallsHtml}
-                                <span class="plus-sign">+</span>
-                                <div class="ball special">${draw.special}</div>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+            // 4. Bind listeners to the page controls
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                if (currentPage > 1) renderTablePage(currentPage - 1);
+            });
+            document.getElementById('next-btn').addEventListener('click', () => {
+                const totalPages = Math.ceil(cachedHistoryData.length / recordsPerPage);
+                if (currentPage < totalPages) renderTablePage(currentPage + 1);
             });
 
-            tableBody.innerHTML = tableHtml;
+            // 5. Render Page 1 initially
+            renderTablePage(1);
         })
         .catch(err => {
             console.error("Error processing framework data mapping:", err);
