@@ -264,7 +264,7 @@
                 font-family: monospace;
                 font-size: 12px;
                 color: #4a5568;
-                max-height: 80px;
+                max-height: 100px;
                 overflow-y: auto;
                 word-wrap: break-word;
                 line-height: 1.5;
@@ -275,8 +275,24 @@
 
         <div class="saved-section">
             <div class="saved-title-bar">
-                <span class="saved-title" id="saved-history-title">⭐ My Generated History</span>
-                <button class="clear-btn" id="clear-saved-btn">Clear History</button>
+                <span class="saved-title">⭐ My Generated History</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <select id="history-limit-selector" style="
+                        padding: 4px 8px;
+                        font-size: 12px;
+                        border-radius: 4px;
+                        border: 1px solid var(--border-color);
+                        background: #fff;
+                        color: var(--text-dark);
+                        cursor: pointer;
+                    ">
+                        <option value="5">Show Last 5</option>
+                        <option value="10" selected>Show Last 10</option>
+                        <option value="20">Show Last 20</option>
+                        <option value="50">Show Last 50</option>
+                    </select>
+                    <button class="clear-btn" id="clear-saved-btn">Clear History</button>
+                </div>
             </div>
             <div id="saved-list-container">
                 </div>
@@ -321,7 +337,7 @@
     let frequencyChartInstance = null;
     
     // --- Configuration Variables ---
-    const MAX_SAVED_LIMIT = 10; // Easily adjust tracking capacity pool length
+    let MAX_SAVED_LIMIT = 10; // This updates dynamically based on dropdown selection
     
     // Pagination tracking states
     let currentPage = 1;
@@ -440,7 +456,7 @@
             special: special
         });
 
-        // Use the config variable to limit total saves dynamically
+        // Limit list to global constraint tracker parameter length
         if (savedList.length > MAX_SAVED_LIMIT) {
             savedList = savedList.slice(0, MAX_SAVED_LIMIT);
         }
@@ -496,7 +512,7 @@
             pool = Array.from({length: 49}, (_, i) => i + 1);
         }
 
-        // Output structural matrix data directly into the scroll text layout box element
+        // Output sorted structural data directly into the scroll view element wrapper
         const sortedDisplayPool = [...pool].sort((a, b) => a - b);
         document.getElementById('pool-size-counter').textContent = pool.length;
         document.getElementById('pool-values-box').textContent = JSON.stringify(sortedDisplayPool).replace(/[\[\]]/g, ' ');
@@ -547,11 +563,34 @@
 
             cachedHistoryData = data.history;
 
+            // Handle user configuration bindings preference setup on page initialization
+            const limitSelector = document.getElementById('history-limit-selector');
+            const savedUserPreference = localStorage.getItem('m6_user_limit_preference');
+            if (savedUserPreference) {
+                MAX_SAVED_LIMIT = parseInt(savedUserPreference, 10);
+                limitSelector.value = savedUserPreference;
+            }
+
+            // Sync structural listeners to selector adjustments dynamically
+            limitSelector.addEventListener('change', (e) => {
+                MAX_SAVED_LIMIT = parseInt(e.target.value, 10);
+                localStorage.setItem('m6_user_limit_preference', MAX_SAVED_LIMIT);
+                
+                let savedList = [];
+                try {
+                    const rawLocal = localStorage.getItem('m6_saved_predictions');
+                    if (rawLocal) savedList = JSON.parse(rawLocal);
+                } catch(err) {}
+                
+                if (savedList.length > MAX_SAVED_LIMIT) {
+                    savedList = savedList.slice(0, MAX_SAVED_LIMIT);
+                    localStorage.setItem('m6_saved_predictions', JSON.stringify(savedList));
+                }
+                renderSavedPredictions();
+            });
+
             // Render existing localStorage items immediately on load
             renderSavedPredictions();
-            
-            // Sync dynamic labels utilizing global configurations parameters
-            document.getElementById('saved-history-title').textContent = `⭐ My Generated History (Last ${MAX_SAVED_LIMIT})`;
 
             // 1. Initial prediction build on page land
             executePredictionGeneration();
