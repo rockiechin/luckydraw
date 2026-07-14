@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LuckyDraw Dashboard</title>
+    <title>Mark Six Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: #f4f6f9;
@@ -36,7 +37,6 @@
             margin-bottom: 4px;
         }
 
-        /* Subtle Status Timestamp Badge */
         .update-status {
             text-align: center;
             font-size: 13px;
@@ -45,13 +45,16 @@
             margin-bottom: 24px;
         }
 
-        /* Predictive Section styling */
-        .prediction-card {
+        /* Card components styling */
+        .prediction-card, .analytics-card, .history-card {
             background: var(--card-bg);
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 30px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .prediction-card {
             text-align: center;
         }
 
@@ -78,14 +81,6 @@
 
         .generate-btn:active {
             transform: translateY(1px);
-        }
-
-        /* History Layout */
-        .history-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .table-responsive {
@@ -137,38 +132,51 @@
             color: #718096;
             margin: 0 4px;
         }
+
+        /* Chart constraints */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>LuckyDraw Dashboard</h2>
-    <!-- Time log placeholder container targeted via script identity -->
+    <h1>Lucky no. Dashboard</h1>
     <div class="update-status" id="timestamp-tracker">Loading system status...</div>
 
-    <!-- PREDICTION COMPONENT -->
     <div class="prediction-card">
         <h2>Predicted No.</h2>
         <div class="ball-container" style="justify-content: center; margin-top: 15px;" id="prediction-output">
-            <!-- JavaScript will insert balls here -->
-        </div>
+            </div>
         <button class="generate-btn" id="generate-trigger-btn">🎲 Generate Random Numbers</button>
     </div>
 
-    <!-- HISTORICAL DATA COMPONENT -->
+    <div class="analytics-card">
+        <h2>Historical Number Frequency (1-49)</h2>
+        <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 2px;">
+            How many times each number has appeared in the current database pool (including special numbers).
+        </p>
+        <div class="chart-container">
+            <canvas id="frequencyChart"></canvas>
+        </div>
+    </div>
+
     <div class="history-card">
-        <h2>Recent History</h2>
+        <h2>Recent Data History</h2>
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
                         <th style="width: 25%;">No.</th>
-                        <th>Result</th>
+                        <th>History</th>
                     </tr>
                 </thead>
                 <tbody id="history-table-body">
-                    <!-- JavaScript will insert dynamic history loops here -->
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </div>
@@ -176,6 +184,64 @@
 
 <script>
     let cachedHistoryData = [];
+    let frequencyChartInstance = null;
+
+    // Helper to extract pool occurrences and update/render the Chart.js graphic
+    renderFrequencyChart(history) {
+        // Initialize an array of 49 zeros (representing numbers 1 to 49)
+        const counts = Array(49).fill(0);
+
+        // Count occurrences of every normal ball and special ball in the dataset
+        history.forEach(draw => {
+            draw.numbers.forEach(num => {
+                if (num >= 1 && num <= 49) counts[num - 1]++;
+            });
+            if (draw.special >= 1 && draw.special <= 49) {
+                counts[draw.special - 1]++;
+            }
+        });
+
+        const labels = Array.from({length: 49}, (_, i) => i + 1);
+        const ctx = document.getElementById('frequencyChart').getContext('2d');
+
+        // Destroy previous instance if it exists (crucial when dynamically refreshing data)
+        if (frequencyChartInstance) {
+            frequencyChartInstance.destroy();
+        }
+
+        // Initialize dynamic bar chart instance
+        frequencyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Occurrences',
+                    data: counts,
+                    backgroundColor: 'rgba(43, 108, 176, 0.7)', // match normal-ball color with opacity
+                    borderColor: 'rgba(43, 108, 176, 1)',
+                    borderWidth: 1,
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
 
     function executePredictionGeneration() {
         if (cachedHistoryData.length === 0) return;
@@ -216,10 +282,10 @@
         predContainer.innerHTML = predHtml;
     }
 
+    // Dynamic retrieval from JSON data store
     fetch('data/results.json')
         .then(response => response.json())
         .then(data => {
-            // 1. Process and append the timestamp string safely
             const timestampContainer = document.getElementById('timestamp-tracker');
             if (data.updated_at) {
                 timestampContainer.textContent = `Last Data Update: ${data.updated_at}`;
@@ -229,8 +295,11 @@
 
             cachedHistoryData = data.history;
 
-            // 2. Initial prediction build on page land
+            // 1. Initial prediction build on page land
             executePredictionGeneration();
+
+            // 2. Render the interactive frequency chart
+            renderFrequencyChart(cachedHistoryData);
 
             // 3. Bind click listener context to the action node
             document.getElementById('generate-trigger-btn').addEventListener('click', executePredictionGeneration);
