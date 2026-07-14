@@ -11,6 +11,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime, timedelta, timezone
 
+# Set a limit on how many total historical records to keep in your database pool
+MAX_HISTORY_LIMIT = 100
 
 DATA_FILE = "data/results.json"
 
@@ -137,47 +139,55 @@ def generate_numbers(history):
 
 def main():
     # 1. Initialize data layout and load existing file if it exists
+    existing_history = []
+    store = {"updated_at": "", "history": []}
+
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             try: 
                 store = json.load(f)
-                # Ensure structure integrity if older keys are missing
-                if "history" not in store:
-                    store["history"] = []
-                if "updated_at" not in store:
-                    store["updated_at"] = ""
-            except: 
-                # If the JSON file is completely corrupted, use a hard fallback with HKT
-                hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
-                store = {
-                    "updated_at": hkt_now.strftime("%Y-%m-%d %H:%M HKT"), 
-                    "history": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]
-                }
-    else:
-        # First time running the script (no file exists yet)
-        hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
-        store = {
-            "updated_at": hkt_now.strftime("%Y-%m-%d %H:%M HKT"), 
-            "history": [{"id": "26/073", "numbers": [5, 34, 37, 43, 48, 49], "special": 27}]
-        }
+                # Keep a copy of whatever history we already collected in past runs
+                existing_history = store.get("history", [])
+            except Exception as load_err: 
+                print(f"Could not parse existing database file: {load_err}")
 
-    # 2. Try to scrape the fresh data
+    # 2. Try to scrape the latest batch from the web
     raw_data = fetch_latest_results()
     
-    # Calculate current Hong Kong Time (UTC + 8 hours)
     hkt_now = datetime.now(timezone.utc) + timedelta(hours=8)
     hkt_str = hkt_now.strftime("%Y-%m-%d %H:%M HKT")
 
     if raw_data and raw_data.get("draws"):
-        # Success! Overwrite with new data and log the new HKT timestamp
-        store["history"] = raw_data["draws"]
+        new_scraped_draws = raw_data["draws"]
+        
+        # --- SMART MERGING PROCESS ---
+        # Create a dictionary of existing draws mapped by their ID to make merging easy
+        merged_dict = {draw["id"]: draw for draw in existing_history}
+        
+        # Add or overwrite with the newly scraped draws (newest data takes precedence)
+        for draw in new_scraped_draws:
+            merged_dict[draw["id"]] = draw
+            
+        # Convert back to a list
+        merged_list = list(merged_dict.values())
+        
+        # Sort the list by Draw ID descending so the newest draws are always at the top
+        # (This matches the '26/073' formatting layout cleanly)
+        merged_list.sort(key=lambda x: x["id"], reverse=True)
+        
+        # Optional: Cap the historical database size so it doesn't slow down the page load
+        if len(merged_list) > MAX_HISTORY_LIMIT:
+            print(f"Capping total stored history pool from {len(merged_list)} to {MAX_HISTORY_LIMIT} entries.")
+            merged_list = merged_list[:MAX_HISTORY_LIMIT]
+            
+        store["history"] = merged_list
         store["updated_at"] = hkt_str
-        print(f"Scraper succeeded. Logged HKT timestamp: {store['updated_at']}")
+        print(f"Scraper succeeded! Database expanded. Total pool size: {len(store['history'])} draws.")
+        
     else:
-        # FAIL SAFE: Keep everything exactly as it was loaded from the file
-        print("⚠️ Scraper failed to fetch new data! Retaining previous history.")
-        # Append a small indicator to the timestamp if it isn't already marked stale
-        if store["updated_at"] and "(Stale)" not in store["updated_at"]:
+        # FAIL SAFE: Keep the existing history completely untouched
+        print("⚠️ Scraper failed to fetch new data! Retaining the previous history and timestamp.")
+        if store.get("updated_at") and "(Stale)" not in store["updated_at"]:
             store["updated_at"] = f"{store['updated_at']} (Stale)"
 
     # 3. Save everything back out to results.json
